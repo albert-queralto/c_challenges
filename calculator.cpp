@@ -5,6 +5,12 @@
 
 #include "std_lib_facilities.h"
 
+const char number = '8';    // t.kind==number means that t is a number Token
+const char quit   = 'q';    // t.kind==quit means that t is a quit Token
+const char print  = ';';    // t.kind==print means that t is a print Token
+const string prompt = "> ";
+const string result = "= "; // used to indicate that what follows is a resul
+
 class Token{
 public:
     char kind;        // what kind of token
@@ -55,8 +61,8 @@ Token Token_stream::get()
     cin >> ch;    // note that >> skips whitespace (space, newline, tab, etc.)
 
     switch (ch) {
-    case '=':    // for "print"
-    case 'x':    // for "quit"
+    case print:    // for "print"
+    case quit:    // for "quit"
     case '(': case ')': case '+': case '-': case '*': case '/':
     case '{': case '}': case '!':
         return Token(ch);        // let each character represent itself
@@ -67,7 +73,7 @@ Token Token_stream::get()
         cin.putback(ch);         // put digit back into the input stream
         double val;
         cin >> val;              // read a floating-point number
-        return Token('8', val);   // let '8' represent "a number"
+        return Token(number, val);
     }
     default:
         error("Bad token");
@@ -83,7 +89,6 @@ double expression();    // declaration so that primary() can call expression()
 double primary()
 {
     Token t = ts.get();
-    double val;
     switch (t.kind) {
     case '(':    // handle '(' expression ')'
     {
@@ -99,8 +104,12 @@ double primary()
         if (t.kind != '}') error("'}' expected");
             return d;
     }
-    case '8':            // we use '8' to represent a number
+    case number:            // we use '8' to represent a number
         return t.value;  // return the number's value
+    case '-':            // handle unary minus
+        return -primary(); // return the negation of the primary
+    case '+':            // handle unary plus
+        return primary();  // return the primary as is
     default:
         error("primary expected");
         return 0;
@@ -150,6 +159,14 @@ double term()
             t = ts.get();
             break;
         }
+        case '%':
+        {
+            double d = factorial();
+            if (d == 0) error("divide by zero");
+            left = fmod(left, d); // use fmod for modulus operation
+            t = ts.get();
+            break;
+        }
         default:
             ts.putback(t);     // put t back into the token stream
             return left;
@@ -180,6 +197,19 @@ double expression()
     }
 }
 
+void calculate() {
+    while (cin) {
+        cout << prompt;
+        Token t = ts.get();
+        while (t.kind == print) t = ts.get(); // eat 'print'
+        if (t.kind == quit) { // 'x' for "exit"
+            return;
+        }
+        ts.putback(t);
+        cout << result << expression() << '\n';
+    }
+}
+
 int main()
 try
 {
@@ -187,17 +217,7 @@ try
          << "Please enter expressions using floating-point numbers.\n"
          << "Operators: +, -, *, /, and parentheses ().\n"
          << "Type 'x' to exit.\n";
-    while (cin) {
-        cout << "> ";
-        Token t = ts.get();
-        while (t.kind == '=') t=ts.get(); // eat ‘=’
-        if (t.kind == 'x') { // 'x' for "exit"
-            keep_window_open();
-            return 0;
-        }
-        ts.putback(t);
-        cout << "= " << expression() << '\n';
-    }
+    calculate();
     keep_window_open();
     return 0;
 }
