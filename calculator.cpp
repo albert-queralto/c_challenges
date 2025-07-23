@@ -187,26 +187,27 @@ try
          << "Please enter expressions using floating-point numbers.\n"
          << "Operators: +, -, *, /, and parentheses ().\n"
          << "Type 'x' to exit.\n";
-    double val = 0;
     while (cin) {
+        cout << "> ";
         Token t = ts.get();
-
-        if (t.kind == 'x') break; // 'x' for quit
-        if (t.kind == '=')        // '=' for "print now"
-            cout << "=" << val << '\n';
-        else
-            ts.putback(t);
-        val = expression();
+        while (t.kind == '=') t=ts.get(); // eat ‘=’
+        if (t.kind == 'x') { // 'x' for "exit"
+            keep_window_open();
+            return 0;
+        }
+        ts.putback(t);
+        cout << "= " << expression() << '\n';
     }
     keep_window_open();
+    return 0;
 }
 catch (exception& e) {
     cerr << "error: " << e.what() << '\n';
-    keep_window_open();
+    keep_window_open("~~");
     return 1;
 }
 catch (...) {
     cerr << "Oops: unknown exception!\n";
-    keep_window_open();
+    keep_window_open("~~");
     return 2;
 }
