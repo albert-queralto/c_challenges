@@ -243,20 +243,20 @@ double Symbol_table::define_name(string var, double val)
 
 Symbol_table sym_table; // global symbol table
 
-double expression();    // declaration so that primary() can call expression()
-double primary();
+double expression(Token_stream& ts);    // declaration so that primary() can call expression()
+double primary(Token_stream& ts);
 
 // Add pow() support in power()
-double power()
+double power(Token_stream& ts)
 {
     Token t = ts.get();
     if (t.kind == powfunc) {
         t = ts.get();
         if (t.kind != '(') error("'(' expected after 'pow'");
-        double base = expression();
+        double base = expression(ts);
         t = ts.get();
         if (t.kind != ',') error("',' expected after base in 'pow'");
-        double exponent = expression();
+        double exponent = expression(ts);
         t = ts.get();
         if (t.kind != ')') error("')' expected after exponent in 'pow'");
         int iexponent = int(exponent);
@@ -264,7 +264,7 @@ double power()
         return pow(base, exponent);
     } else {
         ts.putback(t); // put back the token if it's not a pow function
-        return primary(); // just return the primary value
+        return primary(ts); // just return the primary value
     }
 }
 
@@ -276,9 +276,9 @@ int calc_factorial(int n) {
     return result;
 }
 
-double factorial()
+double factorial(Token_stream& ts)
 {
-    double val = power();
+    double val = power(ts);
     Token t = ts.get();
     while (t.kind == '!') {
         int ival = int(val);
@@ -291,20 +291,20 @@ double factorial()
 }
 
 // deal with numbers and parentheses
-double primary()
+double primary(Token_stream& ts)
 {
     Token t = ts.get();
     switch (t.kind) {
     case '(':    // handle '(' expression ')'
     {
-        double d = expression();
+        double d = expression(ts);
         t = ts.get();
         if (t.kind != ')') error("')' expected");
             return d;
     }
     case '{':    // handle '{' expression '}'
     {
-        double d = expression();
+        double d = expression(ts);
         t = ts.get();
         if (t.kind != '}') error("'}' expected");
             return d;
@@ -313,7 +313,7 @@ double primary()
     {
         t = ts.get(); // get the next token
         if (t.kind != '(') error("'(' expected after 'sqrt'");
-        double d = expression();
+        double d = expression(ts);
         t = ts.get();
         if (t.kind != ')') error("')' expected after expression in sqrt");
         if (d < 0) error("Square root of negative number is undefined");
@@ -324,9 +324,9 @@ double primary()
     case name:             // handle variable names
         return sym_table.get_value(t.name);
     case '-':            // handle unary minus
-        return -primary(); // return the negation of the primary
+        return -primary(ts); // return the negation of the primary
     case '+':            // handle unary plus
-        return primary();  // return the primary as is
+        return primary(ts);  // return the primary as is
     default:
         error("primary expected");
         return 0;
@@ -334,20 +334,20 @@ double primary()
 }
 
 // deal with *, /, and %
-double term()
+double term(Token_stream& ts)
 {
-    double left = factorial();
+    double left = factorial(ts);
     Token t = ts.get();        // get the next token from token stream
 
     while (true) {
         switch (t.kind) {
         case '*':
-            left *= factorial();
+            left *= factorial(ts);
             t = ts.get();
             break;
         case '/':
         {
-            double d = factorial();
+            double d = factorial(ts);
             if (d == 0) error("divide by zero");
             left /= d;
             t = ts.get();
@@ -355,7 +355,7 @@ double term()
         }
         case '%':
         {
-            double d = factorial();
+            double d = factorial(ts);
             if (d == 0) error("divide by zero");
             left = fmod(left, d); // use fmod for modulus operation
             t = ts.get();
@@ -369,19 +369,19 @@ double term()
 }
 
 // deal with + and -
-double expression()
+double expression(Token_stream& ts)
 {
-    double left = term();      // read and evaluate a Term
+    double left = term(ts);      // read and evaluate a Term
     Token t = ts.get();        // get the next token from token stream
 
     while (true) {
         switch (t.kind) {
         case '+':
-            left += term();    // evaluate Term and add
+            left += term(ts);    // evaluate Term and add
             t = ts.get();
             break;
         case '-':
-            left -= term();    // evaluate Term and subtract
+            left -= term(ts);    // evaluate Term and subtract
             t = ts.get();
             break;
         default:
@@ -391,7 +391,7 @@ double expression()
     }
 }
 
-double declaration()
+double declaration(Token_stream& ts)
 // handle: name = expression
 // declare a variable called "name" with the initial value "expression"
 {
@@ -401,30 +401,30 @@ double declaration()
 
     Token t2 = ts.get();
     if (t2.kind != '=') error("'=' expected in declaration");
-    double d = expression();
+    double d = expression(ts);
     sym_table.define_name(var_name, d);
     return d;
 }
 
-double statement()
+double statement(Token_stream& ts)
 {
     Token t = ts.get();
     switch (t.kind) {
         case let:
-            return declaration();
+            return declaration(ts);
         default:
             ts.unget(t);
-            return expression();
+            return expression(ts);
     }
 }
 
 
-void clean_up_mess()
+void clean_up_mess(Token_stream& ts)
 {
     ts.ignore(print);
 }
 
-void calculate() {
+void calculate(Token_stream& ts) {
     while (cin) {
         try {
             cout << prompt;
@@ -434,11 +434,11 @@ void calculate() {
                 return;
             }
             ts.unget(t);
-            cout << result << statement() << '\n';
+            cout << result << statement(ts) << '\n';
         }
         catch (exception& e) {
             cerr << e.what() << '\n'; // report the error
-            clean_up_mess();
+            clean_up_mess(ts);
         }
     }
 }
@@ -454,7 +454,7 @@ try
     sym_table.define_name("pi", 3.1415926535897932385); // define pi
     sym_table.define_name("e", 2.7182818284590452354); // define e
 
-    calculate();
+    calculate(ts);
     keep_window_open();
     return 0;
 }
